@@ -1,0 +1,752 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  createdAt   DateTime @default(now())
+
+  members       OrganizationMember[]
+  clients       Client[]
+  websites      Website[]
+  invitations   Invitation[]
+  notifications Notification[]
+}
+
+model User {
+  id                     String                  @id @default(cuid())
+  email                  String                  @unique
+  passwordHash           String
+  mfaSecret              String?                 // encrypted at rest
+  mfaEnabled             Boolean                 @default(false)
+  mfaBackupCodes         String                  @default("[]") // JSON stringified array of hashed backup codes
+  createdAt              DateTime                @default(now())
+  lastLoginAt            DateTime?
+
+  memberships            OrganizationMember[]
+  websiteAccess          WebsiteAccess[]
+  loginEvents            LoginEvent[]
+  sessions               Session[]
+  assignedLeads          Lead[]
+  notificationPreference NotificationPreference?
+}
+
+model OrganizationMember {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  role           String   @default("MANAGER") // "OWNER" | "MANAGER"
+  status         String   @default("ACTIVE")  // "ACTIVE" | "SUSPENDED"
+  createdAt      DateTime @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+}
+
+model Invitation {
+  id              String    @id @default(cuid())
+  organizationId  String
+  email           String
+  role            String    @default("MANAGER") // "OWNER" | "MANAGER"
+  tokenHash       String    @unique
+  invitedByUserId String
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  revokedAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, email])
+}
+
+model Client {
+  id                 String   @id @default(cuid())
+  organizationId     String
+  name               String
+  primaryContactName String?
+  contactEmail       String?
+  contactPhone       String?
+  status             String   @default("ACTIVE") // "ACTIVE" | "PAUSED" | "ARCHIVED"
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  websites           Website[]
+}
+
+model Website {
+  id                  String          @id @default(cuid())
+  organizationId      String
+  clientId            String
+  name                String
+  domain              String
+  timezone            String          @default("Asia/Kolkata")
+  connectorType       String          @default("UNCONNECTED")  // "UNCONNECTED" | "WORDPRESS" | "CUSTOM"
+  connectionState     String          @default("DISCONNECTED") // "ANALYZING" | "AUDIT_ONLY" | "CONNECTED" | "SYNCING" | "CONNECTION_ERROR" | "DISCONNECTED"
+  ownershipVerifiedAt DateTime?
+  latestAnalysisId    String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  organization        Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  client              Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  access              WebsiteAccess[]
+  analyses            WebsiteAnalysis[]
+  verifications       OwnershipVerification[]
+  credential          ConnectorCredential?
+  pages               Page[]
+  blogPosts           BlogPost[]
+  authors             Author[]
+  media               Media[]
+  navigationMenus     NavigationMenu[]
+  redirects           Redirect[]
+  technicalFiles      TechnicalFile[]
+  sitemapRuns         SitemapRun[]
+  forms               Form[]
+  leads                  Lead[]
+  integrationConnections IntegrationConnection[]
+  conversionEvents       ConversionEvent[]
+  customScripts          CustomScript[]
+  googleBusinessReviews  GoogleBusinessReview[]
+  notifications          Notification[]
+  monitoringChecks       MonitoringCheck[]
+  monitoringIncidents    MonitoringIncident[]
+
+  @@index([organizationId])
+  @@unique([organizationId, domain])
+}
+
+model WebsiteAnalysis {
+  id              String          @id @default(cuid())
+  websiteId       String
+  status          String          @default("QUEUED") // "QUEUED" | "RUNNING" | "COMPLETE" | "FAILED"
+  startedAt       DateTime?
+  completedAt     DateTime?
+  pagesFound      Int?
+  indexableCount  Int?
+  detectedCms     String?         // "WordPress", "Webflow", "Custom", etc.
+  detectedBuilder String?         // "Elementor", "Gutenberg", "Divi", etc.
+  sslValid        Boolean?
+  sitemapFound    Boolean?
+  robotsFound     Boolean?
+  errorMessage    String?
+  createdAt       DateTime        @default(now())
+
+  website         Website         @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  issues          AnalysisIssue[]
+  pages           AnalyzedPage[]
+
+  @@index([websiteId, createdAt])
+}
+
+model AnalysisIssue {
+  id            String          @id @default(cuid())
+  analysisId    String
+  category      String          // "TECHNICAL" | "PERFORMANCE" | "CONTENT"
+  severity      String          // "CRITICAL" | "ATTENTION" | "HEALTHY" | "NOT_CONFIGURED"
+  checkKey      String          // stable machine key, e.g. "missing_meta_description"
+  title         String          // e.g. "Meta descriptions"
+  detail        String          // e.g. "5 pages missing a meta description"
+  affectedCount Int             @default(0)
+  createdAt     DateTime        @default(now())
+
+  analysis      WebsiteAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@index([analysisId, category])
+}
+
+model AnalyzedPage {
+  id                String          @id @default(cuid())
+  analysisId        String
+  url               String
+  httpStatus        Int?
+  metaTitle         String?
+  metaDescription   String?
+  h1                String?
+  canonical         String?
+  isIndexable       Boolean?
+  missingAltImages  Int             @default(0)
+  wordCount         Int?
+
+  analysis          WebsiteAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@index([analysisId])
+}
+
+model OwnershipVerification {
+  id          String              @id @default(cuid())
+  websiteId   String
+  method      String              // "DNS_TXT" | "FILE_UPLOAD" | "META_TAG" | "CONNECTOR"
+  token       String              // verification token string
+  status      String              @default("PENDING") // "PENDING" | "VERIFIED" | "FAILED" | "EXPIRED"
+  attemptedAt DateTime?
+  verifiedAt  DateTime?
+  createdAt   DateTime            @default(now())
+
+  website     Website             @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@index([websiteId])
+}
+
+model ConnectorCredential {
+  id            String   @id @default(cuid())
+  websiteId     String   @unique
+  connectorType String   // "WORDPRESS" | "CUSTOM"
+  encryptedData String   // AES-256-GCM blob
+  scopes        String   @default("[]") // JSON stringified array of granted scopes
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  website       Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+}
+
+model WebsiteAccess {
+  id        String   @id @default(cuid())
+  websiteId String
+  userId    String
+  grantedAt DateTime @default(now())
+
+  website   Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([websiteId, userId])
+}
+
+model LoginEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // "login_success" | "login_failed" | "password_reset" | "mfa_enabled" | "session_revoked"
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  sessionToken String   @unique
+  ip           String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+  lastSeenAt   DateTime @default(now())
+  expiresAt    DateTime
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ============ PHASE 3: CMS Models ============
+
+model Page {
+  id                  String          @id @default(cuid())
+  websiteId           String
+  slug                String
+  title               String
+  status              String          @default("DRAFT") // "DRAFT" | "SCHEDULED" | "PUBLISHED"
+  scheduledAt         DateTime?
+  publishedAt         DateTime?
+  seoTitle            String?
+  seoDescription      String?
+  h1                  String?
+  canonicalUrl        String?
+  robotsDirective     String          @default("INDEX_FOLLOW") // "INDEX_FOLLOW" | "NOINDEX_FOLLOW" | "NOINDEX_NOFOLLOW"
+  focusKeyword        String?
+  secondaryKeywords   String          @default("[]") // JSON stringified string[]
+  ogTitle             String?
+  ogDescription       String?
+  socialImageMediaId  String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  website             Website         @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  sections            PageSection[]
+  versions            PageVersion[]
+  schemas             PageSchema[]
+  customScripts       CustomScript[]
+
+  @@unique([websiteId, slug])
+  @@index([websiteId])
+}
+
+model PageSection {
+  id      String @id @default(cuid())
+  pageId  String
+  type    String // "hero" | "features" | "cta" | "faq" | ...
+  order   Int
+  content String // JSON stringified structured component content
+
+  page    Page   @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId, order])
+}
+
+model PageVersion {
+  id        String   @id @default(cuid())
+  pageId    String
+  snapshot  String   // JSON stringified snapshot
+  summary   String
+  createdAt DateTime @default(now())
+  createdBy String
+
+  page      Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+}
+
+model Author {
+  id           String   @id @default(cuid())
+  websiteId    String
+  name         String
+  roleLabel    String?
+  bio          String?
+  photoMediaId String?
+  xUrl         String?
+  instagramUrl String?
+  linkedinUrl  String?
+  createdAt    DateTime @default(now())
+
+  website      Website    @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  posts        BlogPost[]
+
+  @@index([websiteId])
+}
+
+model BlogPost {
+  id                 String            @id @default(cuid())
+  websiteId          String
+  authorId           String?
+  slug               String
+  title              String
+  content            String            // JSON stringified Tiptap document JSON
+  status             String            @default("DRAFT") // "DRAFT" | "SCHEDULED" | "PUBLISHED"
+  scheduledAt        DateTime?
+  publishedAt        DateTime?
+  seoTitle           String?
+  seoDescription     String?
+  h1                 String?
+  canonicalUrl       String?
+  robotsDirective    String            @default("INDEX_FOLLOW") // "INDEX_FOLLOW" | "NOINDEX_FOLLOW" | "NOINDEX_NOFOLLOW"
+  focusKeyword       String?
+  secondaryKeywords  String            @default("[]") // JSON stringified string[]
+  ogTitle            String?
+  ogDescription      String?
+  socialImageMediaId String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  website            Website           @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  author             Author?           @relation(fields: [authorId], references: [id])
+  versions           BlogPostVersion[]
+  schemas            PostSchema[]
+
+  @@unique([websiteId, slug])
+  @@index([websiteId])
+}
+
+model BlogPostVersion {
+  id        String   @id @default(cuid())
+  postId    String
+  snapshot  String   // JSON stringified snapshot
+  summary   String
+  createdAt DateTime @default(now())
+  createdBy String
+
+  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+model Media {
+  id        String   @id @default(cuid())
+  websiteId String
+  url       String
+  filename  String
+  folder    String?
+  altText   String?
+  caption   String?
+  title     String?
+  width     Int?
+  height    Int?
+  sizeBytes Int?
+  format    String?
+  createdAt DateTime @default(now())
+
+  website   Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@index([websiteId])
+}
+
+model NavigationMenu {
+  id        String           @id @default(cuid())
+  websiteId String
+  name      String
+  location  String           // "primary" | "footer" | "mobile"
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  website   Website          @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  items     NavigationItem[]
+
+  @@unique([websiteId, location])
+}
+
+model NavigationItem {
+  id        String           @id @default(cuid())
+  menuId    String
+  parentId  String?
+  label     String
+  url       String
+  target    String           @default("_self") // "_self" | "_blank"
+  order     Int
+  createdAt DateTime         @default(now())
+
+  menu      NavigationMenu   @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  parent    NavigationItem?  @relation("NavHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children  NavigationItem[] @relation("NavHierarchy")
+
+  @@index([menuId, order])
+}
+
+// ============ PHASE 4: SEO Models ============
+
+model PageSchema {
+  id        String   @id @default(cuid())
+  pageId    String
+  type      String   // SchemaType enum string (e.g. "ORGANIZATION", "FAQ_PAGE", etc.)
+  data      String   // JSON stringified structured form fields
+  jsonLd    String   // JSON stringified generated & cached JSON-LD
+  source    String   // "manual" | "auto_faq" | "auto_recommendation"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  page      Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId])
+}
+
+model PostSchema {
+  id        String   @id @default(cuid())
+  postId    String
+  type      String   // SchemaType enum string
+  data      String   // JSON stringified structured form fields
+  jsonLd    String   // JSON stringified generated & cached JSON-LD
+  source    String   // "manual" | "auto_faq" | "auto_recommendation"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  post      BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+}
+
+model Redirect {
+  id        String   @id @default(cuid())
+  websiteId String
+  fromPath  String
+  toPath    String
+  type      String   @default("R301") // "R301" | "R302" | "R307" | "R308"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  website   Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@unique([websiteId, fromPath])
+  @@index([websiteId])
+}
+
+model TechnicalFile {
+  id        String   @id @default(cuid())
+  websiteId String
+  type      String   // "ROBOTS_TXT" | "LLMS_TXT"
+  content   String
+  mode      String   @default("safe") // "safe" | "advanced"
+  updatedAt DateTime @updatedAt
+  updatedBy String
+
+  website   Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@unique([websiteId, type])
+}
+
+model SitemapRun {
+  id          String   @id @default(cuid())
+  websiteId   String
+  urlCount    Int
+  generatedAt DateTime @default(now())
+
+  website     Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@index([websiteId])
+}
+
+// ============ PHASE 5: Forms & Leads ============
+
+model Form {
+  id             String           @id @default(cuid())
+  websiteId      String
+  name           String
+  status         String           @default("DRAFT") // "DRAFT" | "DEPLOYED"
+  publicKey      String           @unique
+  successMessage String?
+  redirectUrl    String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  website        Website          @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  fields         FormField[]
+  actions        FormAction[]
+  submissions    FormSubmission[]
+
+  @@index([websiteId])
+}
+
+model FormField {
+  id          String   @id @default(cuid())
+  formId      String
+  type        String   // "TEXT" | "EMAIL" | "PHONE" | "NUMBER" | "DROPDOWN" | "CHECKBOX" | "RADIO" | "DATE" | "FILE" | "HIDDEN"
+  label       String
+  placeholder String?
+  required    Boolean  @default(false)
+  order       Int
+  options     String   @default("[]") // JSON stringified string[] array for DROPDOWN / RADIO
+  validation  String?  // rule string e.g. "email" | "min:3" | "phone"
+
+  form        Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@index([formId, order])
+}
+
+model FormAction {
+  id      String  @id @default(cuid())
+  formId  String
+  type    String  // "CREATE_LEAD" | "SEND_EMAIL" | "TRIGGER_CONVERSION" | "REDIRECT" | "SHOW_SUCCESS_MESSAGE" | "SEND_WEBHOOK"
+  enabled Boolean @default(true)
+  order   Int     @default(0)
+  config  String  @default("{}") // JSON stringified configuration object
+
+  form    Form    @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@index([formId])
+}
+
+model FormSubmission {
+  id         String   @id @default(cuid())
+  formId     String
+  rawPayload String   // Full unmodified submission JSON
+  createdAt  DateTime @default(now())
+
+  form       Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  lead       Lead?
+
+  @@index([formId, createdAt])
+}
+
+model Lead {
+  id               String          @id @default(cuid())
+  websiteId        String
+  formSubmissionId String?         @unique
+  name             String?
+  email            String?
+  phone            String?
+  message          String?
+  status           String          @default("NEW") // "NEW" | "CONTACTED" | "QUALIFIED" | "PROPOSAL" | "WON" | "LOST"
+  assignedUserId   String?
+  utmSource        String?
+  utmMedium        String?
+  utmCampaign      String?
+  utmTerm          String?
+  utmContent       String?
+  landingPage      String?
+  referrer         String?
+  device           String?
+  notes            String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  website          Website         @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  formSubmission   FormSubmission? @relation(fields: [formSubmissionId], references: [id], onDelete: SetNull)
+  assignedUser     User?           @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  activities       LeadActivity[]
+
+  @@index([websiteId, status])
+  @@index([websiteId, createdAt])
+}
+
+model LeadActivity {
+  id        String   @id @default(cuid())
+  leadId    String
+  type      String   // "CREATED" | "FORM_SUBMITTED" | "ASSIGNED" | "STATUS_CHANGED" | "NOTE_ADDED"
+  detail    String?  // e.g. "Status changed to Contacted" or note text
+  createdAt DateTime @default(now())
+  createdBy String?  // userId or null for system event
+
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, createdAt])
+}
+
+// ============ PHASE 6: Integrations ============
+
+model IntegrationConnection {
+  id                  String                 @id @default(cuid())
+  websiteId           String
+  provider            String                 // "GA4" | "GSC" | "GTM" | "GOOGLE_ADS" | "META" | "MS_CLARITY" | "GOOGLE_BUSINESS_PROFILE"
+  status              String                 @default("NOT_CONNECTED") // "NOT_CONNECTED" | "CONNECTED" | "ERROR"
+  externalAccountId   String?                // GA4 property id, GTM container id, Google Ads customer id, Meta pixel id, GBP location id, etc.
+  externalAccountName String?                // display name shown on connection card e.g. "amarybeaute.com — GA4 Property"
+  connectedAt         DateTime?
+  lastSyncedAt        DateTime?
+  lastError           String?                // plain-language, shown on the "Connection error" card
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+
+  website             Website                @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  credential          IntegrationCredential?
+
+  @@unique([websiteId, provider])
+  @@index([websiteId])
+}
+
+model IntegrationCredential {
+  id                    String                @id @default(cuid())
+  connectionId          String                @unique
+  accessTokenEncrypted  String                // AES-256-GCM
+  refreshTokenEncrypted String?
+  expiresAt             DateTime?
+  scopes                String                @default("[]") // JSON stringified string[] array
+
+  connection            IntegrationConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+}
+
+model ConversionEvent {
+  id             String                   @id @default(cuid())
+  websiteId      String
+  name           String                   // e.g. "Contact form submission"
+  classification String                   @default("SECONDARY") // "PRIMARY" | "SECONDARY"
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  website        Website                  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  mappings       ConversionEventMapping[]
+
+  @@index([websiteId])
+}
+
+model ConversionEventMapping {
+  id                   String          @id @default(cuid())
+  conversionEventId    String
+  provider             String          // "GA4" | "GOOGLE_ADS" | "META"
+  externalEventName    String?         // GA4 custom event name / Meta standard event name
+  externalConversionId String?         // Google Ads conversion action id
+
+  conversionEvent      ConversionEvent @relation(fields: [conversionEventId], references: [id], onDelete: Cascade)
+
+  @@unique([conversionEventId, provider])
+}
+
+model CustomScript {
+  id        String   @id @default(cuid())
+  websiteId String
+  name      String
+  scope     String   // "SITE" | "PAGE" | "BLOG"
+  pageId    String?  // set only when scope = PAGE; null otherwise
+  placement String   // "HEAD" | "BODY" | "FOOTER"
+  code      String   // raw HTML/JS injected verbatim
+  status    String   @default("ACTIVE") // "ACTIVE" | "DISABLED"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?  // userId of creator
+
+  website   Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  page      Page?    @relation(fields: [pageId], references: [id], onDelete: SetNull)
+
+  @@index([websiteId, status])
+}
+
+model GoogleBusinessReview {
+  id               String   @id @default(cuid())
+  websiteId        String
+  externalReviewId String   @unique
+  reviewerName     String
+  rating           Int
+  excerpt          String?
+  postedAt         DateTime
+  replyStatus      String   // "Not replied" | "Replied"
+  createdAt        DateTime @default(now())
+
+  website          Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@index([websiteId, postedAt])
+}
+
+// ============ PHASE 7: Monitoring & Notifications ============
+
+model Notification {
+  id             String    @id @default(cuid())
+  organizationId String
+  websiteId      String?   // null for org-level notifications (e.g. invitation accepted)
+  type           String    // "NEW_LEAD" | "WEBSITE_CONNECTION_ERROR" | "WEBSITE_DOWN" | "SSL_EXPIRY_WARNING" | "SEO_AUDIT_COMPLETED" | "NEW_SEO_ISSUE" | "INTEGRATION_DISCONNECTED" | "PUBLISHING_COMPLETED" | "FORM_ERROR" | "USER_INVITATION_STATUS_CHANGED"
+  severity       String    // "INFO" | "SUCCESS" | "WARNING" | "CRITICAL"
+  title          String    // e.g. "Website down"
+  detail         String    // e.g. "Homepage is currently returning a 500 error"
+  linkPath       String?   // where the notification's "Fix →" action navigates, if any
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  website        Website?     @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, readAt])
+  @@index([websiteId, createdAt])
+}
+
+model NotificationPreference {
+  id                 String  @id @default(cuid())
+  userId             String  @unique
+  sslExpiry          Boolean @default(true)
+  newLead            Boolean @default(true)
+  seoAudit           Boolean @default(true)
+  publishingAndForms Boolean @default(true)
+
+  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MonitoringCheck {
+  id        String   @id @default(cuid())
+  websiteId String
+  type      String   // "UPTIME" | "SSL_EXPIRY" | "CRAWL"
+  status    String   // "HEALTHY" | "ATTENTION" | "CRITICAL"
+  detail    String   // e.g. "Returning 500", "Expires in 14 days", "127 URLs checked, 12 new issues"
+  checkedAt DateTime @default(now())
+
+  website   Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@index([websiteId, type, checkedAt])
+  @@index([websiteId, checkedAt])
+}
+
+model MonitoringIncident {
+  id         String    @id @default(cuid())
+  websiteId  String
+  type       String    // "UPTIME" | "SSL_EXPIRY" | "CRAWL"
+  title      String    // e.g. "Homepage returned a 500 error"
+  detail     String
+  startedAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  website    Website   @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@index([websiteId, resolvedAt])
+}
+
+
+
+
