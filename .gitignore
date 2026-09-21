@@ -38,3 +38,7 @@ prisma/*.db
 prisma/*.db-journal
 *.sqlite
 *.sqlite3
+
+# external reference tools
+awesome-design-md/
+screenshot-to-code/

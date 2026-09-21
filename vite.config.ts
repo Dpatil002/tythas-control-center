@@ -10,7 +10,7 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     fileParallelism: false,
     env: {
-      DATABASE_URL: 'file:./test.db',
+      DATABASE_URL: process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_aVK0psAOu9FD@ep-mute-tooth-b41sw1ua-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require',
     },
   },
 });
