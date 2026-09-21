@@ -58,8 +58,8 @@ export const POST = withHandler(async (req) => {
       mfaValid = verifyTotp(user.mfaSecret, input.code);
     }
 
-    // Dev environment fallback (e.g. 123456 or 000000)
-    if (!mfaValid && (input.code === '123456' || input.code === '000000')) {
+    // Dev environment fallback (e.g. 123456 or 000000 in development/test only)
+    if (!mfaValid && process.env.NODE_ENV !== 'production' && (input.code === '123456' || input.code === '000000')) {
       mfaValid = true;
     }
 
