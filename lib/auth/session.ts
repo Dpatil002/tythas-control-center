@@ -52,19 +52,27 @@ export async function createSession(
 }
 
 export function setSessionCookie(sessionToken: string, expiresAt: Date) {
-  const cookieStore = cookies();
-  cookieStore.set(SESSION_COOKIE_NAME, sessionToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    expires: expiresAt,
-    path: '/',
-  });
+  try {
+    const cookieStore = cookies();
+    cookieStore.set(SESSION_COOKIE_NAME, sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      expires: expiresAt,
+      path: '/',
+    });
+  } catch (err) {
+    console.warn('Could not set cookie via next/headers:', err);
+  }
 }
 
 export function clearSessionCookie() {
-  const cookieStore = cookies();
-  cookieStore.delete(SESSION_COOKIE_NAME);
+  try {
+    const cookieStore = cookies();
+    cookieStore.delete(SESSION_COOKIE_NAME);
+  } catch (err) {
+    console.warn('Could not delete cookie via next/headers:', err);
+  }
 }
 
 export async function getSessionFromToken(token: string): Promise<SessionData | null> {

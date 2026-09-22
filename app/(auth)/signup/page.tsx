@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Shield, ArrowRight, CheckCircle, Copy, Check } from 'lucide-react';
 import { TythasLogo } from '@/components/ui/tythas-logo';
+import { safeFetch } from '@/lib/http/safe-fetch';
 
 interface MfaSetupData {
   secret: string;
@@ -24,7 +25,7 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [mfaData, setMfaData] = useState<MfaSetupData | null>(null);
 
-  // Step 2: MFA Verification
+  // Step 2: MFA verification
   const [totpCode, setTotpCode] = useState('');
   const [copiedSecret, setCopiedSecret] = useState(false);
   const [copiedBackupCodes, setCopiedBackupCodes] = useState(false);
@@ -38,7 +39,7 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      const res = await fetch('/api/auth/signup', {
+      const result = await safeFetch<{ mfaSetup: MfaSetupData }>('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -48,12 +49,11 @@ export default function SignupPage() {
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error?.message || 'Failed to create organization');
+      if (!result.ok) {
+        throw new Error(result.error);
       }
 
-      setMfaData(data.data.mfaSetup);
+      setMfaData(result.data.mfaSetup);
       setStep(2);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An error occurred during signup');
@@ -68,15 +68,14 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      const res = await fetch('/api/auth/mfa/verify', {
+      const result = await safeFetch('/api/auth/mfa/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: totpCode }),
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error?.message || 'Failed to verify authenticator code');
+      if (!result.ok) {
+        throw new Error(result.error);
       }
 
       router.push('/dashboard');

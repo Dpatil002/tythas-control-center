@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
 import { TythasLogo } from '@/components/ui/tythas-logo';
+import { safeFetch } from '@/lib/http/safe-fetch';
 
 export default function ResetPasswordRequestPage() {
   const [email, setEmail] = useState('');
@@ -19,15 +20,14 @@ export default function ResetPasswordRequestPage() {
     setIsLoading(true);
 
     try {
-      const res = await fetch('/api/auth/password-reset/request', {
+      const result = await safeFetch('/api/auth/password-reset/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error?.message || 'Failed to request password reset');
+      if (!result.ok) {
+        throw new Error(result.error);
       }
 
       setSubmitted(true);

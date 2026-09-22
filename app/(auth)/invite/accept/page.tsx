@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ShieldAlert, CheckCircle, Copy, Check, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { TythasLogo } from '@/components/ui/tythas-logo';
+import { safeFetch } from '@/lib/http/safe-fetch';
 
 interface MfaData {
   secret: string;
@@ -50,16 +51,15 @@ function AcceptInviteContent() {
       return;
     }
 
-    fetch(`/api/invitations/${token}/accept`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.error) {
+    safeFetch<{ invitation: any; mfaSetup: MfaData }>(`/api/invitations/${token}/accept`)
+      .then((result) => {
+        if (!result.ok) {
           setIsValid(false);
-          setErrorMessage(data.error.message);
+          setErrorMessage(result.error);
         } else {
           setIsValid(true);
-          setInvitationData(data.data.invitation);
-          setMfaData(data.data.mfaSetup);
+          setInvitationData(result.data.invitation);
+          setMfaData(result.data.mfaSetup);
         }
       })
       .catch(() => {
@@ -88,7 +88,7 @@ function AcceptInviteContent() {
     setIsSubmitting(true);
 
     try {
-      const res = await fetch(`/api/invitations/${token}/accept`, {
+      const result = await safeFetch(`/api/invitations/${token}/accept`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -99,9 +99,8 @@ function AcceptInviteContent() {
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error?.message || 'Failed to activate account');
+      if (!result.ok) {
+        throw new Error(result.error);
       }
 
       router.push('/dashboard');

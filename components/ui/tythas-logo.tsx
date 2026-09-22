@@ -61,7 +61,7 @@ export const TythasLogo: React.FC<TythasLogoProps> = ({
       );
     }
 
-    // Auto / Responsive to CSS dark mode
+    // Auto / Responsive to CSS dark mode and media queries
     return (
       <div className={`relative inline-flex items-center justify-center ${className}`}>
         <Image
@@ -69,7 +69,7 @@ export const TythasLogo: React.FC<TythasLogoProps> = ({
           alt={alt}
           width={dim}
           height={dim}
-          className="object-contain dark:hidden"
+          className="object-contain theme-logo-light"
           priority={priority}
         />
         <Image
@@ -77,7 +77,7 @@ export const TythasLogo: React.FC<TythasLogoProps> = ({
           alt={alt}
           width={dim}
           height={dim}
-          className="object-contain hidden dark:block"
+          className="object-contain theme-logo-dark"
           priority={priority}
         />
       </div>
@@ -121,7 +121,7 @@ export const TythasLogo: React.FC<TythasLogoProps> = ({
         alt={alt}
         width={fullWidth}
         height={fullHeight}
-        className="object-contain dark:hidden"
+        className="object-contain theme-logo-light"
         priority={priority}
       />
       <Image
@@ -129,7 +129,7 @@ export const TythasLogo: React.FC<TythasLogoProps> = ({
         alt={alt}
         width={fullWidth}
         height={fullHeight}
-        className="object-contain hidden dark:block"
+        className="object-contain theme-logo-dark"
         priority={priority}
       />
     </div>

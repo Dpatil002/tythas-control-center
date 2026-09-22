@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ShieldCheck, ArrowRight, KeyRound } from 'lucide-react';
 import { TythasLogo } from '@/components/ui/tythas-logo';
+import { safeFetch } from '@/lib/http/safe-fetch';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,7 +24,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const res = await fetch('/api/auth/login', {
+      const result = await safeFetch<{ mfaRequired?: boolean }>('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -33,13 +34,11 @@ export default function LoginPage() {
         }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error?.message || 'Login failed. Please check your credentials.');
+      if (!result.ok) {
+        throw new Error(result.error);
       }
 
-      if (data.data?.mfaRequired) {
+      if (result.data?.mfaRequired) {
         setIsMfaRequired(true);
         setIsLoading(false);
         return;

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, ShieldAlert, Lock } from 'lucide-react';
 import { TythasLogo } from '@/components/ui/tythas-logo';
+import { safeFetch } from '@/lib/http/safe-fetch';
 
 function ConfirmResetPasswordContent() {
   const searchParams = useSearchParams();
@@ -61,7 +62,7 @@ function ConfirmResetPasswordContent() {
     setIsLoading(true);
 
     try {
-      const res = await fetch('/api/auth/password-reset/confirm', {
+      const result = await safeFetch('/api/auth/password-reset/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -70,9 +71,8 @@ function ConfirmResetPasswordContent() {
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error?.message || 'Failed to reset password');
+      if (!result.ok) {
+        throw new Error(result.error);
       }
 
       setIsSuccess(true);
