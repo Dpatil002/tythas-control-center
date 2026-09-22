@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 export interface ModalProps {
@@ -20,6 +21,12 @@ export const Modal: React.FC<ModalProps> = ({
   children,
   maxWidth = 'md',
 }) => {
+  // document.body isn't available during SSR, so only portal after mount.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) onClose();
@@ -39,7 +46,7 @@ export const Modal: React.FC<ModalProps> = ({
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const maxWidthClass = {
     sm: 'max-w-sm',
@@ -54,7 +61,7 @@ export const Modal: React.FC<ModalProps> = ({
     full: 'max-w-[95vw]',
   }[maxWidth] || 'max-w-md';
 
-  return (
+  const modalContent = (
     <>
       {/* Backdrop */}
       <div
@@ -65,9 +72,7 @@ export const Modal: React.FC<ModalProps> = ({
 
       {/*
         Modal Dialog Box: fixed + transform-centered directly, with its own
-        max-height and internal scroll. No wrapping flex/inline-block centering
-        container at all, so there is nothing for a parent's height/overflow
-        computation to get wrong. This is the simplest possible robust pattern.
+        max-height and internal scroll.
       */}
       <div
         className={`fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100vw-2rem)] sm:w-full ${maxWidthClass} max-h-[85vh] flex flex-col bg-surface border border-border rounded-xl shadow-2xl animate-in zoom-in-95 duration-150`}
@@ -94,4 +99,15 @@ export const Modal: React.FC<ModalProps> = ({
       </div>
     </>
   );
+
+  // Render via a portal directly into document.body. This is the actual fix:
+  // the modal used to render as a descendant of the app <header>, which has
+  // `backdrop-blur-md` (backdrop-filter). Per the CSS spec, filter/backdrop-filter
+  // on an ancestor creates a NEW CONTAINING BLOCK for `position: fixed`
+  // descendants, so the modal's "fixed" box was being positioned relative to
+  // that 56px-tall header bar instead of the real viewport -- which is why it
+  // kept getting clipped no matter what centering CSS was used inside the
+  // modal itself. Portaling to document.body sidesteps this permanently,
+  // regardless of what styling ends up on any future ancestor.
+  return createPortal(modalContent, document.body);
 };
