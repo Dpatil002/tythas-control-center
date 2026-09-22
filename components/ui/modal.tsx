@@ -55,7 +55,7 @@ export const Modal: React.FC<ModalProps> = ({
   }[maxWidth] || 'max-w-md';
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden p-4 sm:p-6 flex min-h-full items-start justify-center bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
       {/* Clickable backdrop overlay */}
       <div
         className="fixed inset-0 -z-10"
@@ -63,29 +63,44 @@ export const Modal: React.FC<ModalProps> = ({
         aria-hidden="true"
       />
 
-      {/* Modal Dialog Box */}
-      <div
-        className={`relative w-full ${maxWidthClass} my-auto max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-4rem)] flex flex-col bg-surface border border-border rounded-xl shadow-2xl z-10 animate-in zoom-in-95 duration-150`}
-        role="dialog"
-        aria-modal="true"
-      >
-        {(title || description) && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0 bg-surface rounded-t-xl">
-            <div>
-              {title && <h3 className="text-base font-semibold text-text-primary font-display">{title}</h3>}
-              {description && <p className="text-xs text-text-tertiary mt-0.5">{description}</p>}
-            </div>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-surface-2 transition-colors ml-4 flex-shrink-0"
-              aria-label="Close modal"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        )}
+      {/*
+        Centering via the inline-block + vertical-align "ghost element" trick.
+        Deliberately NOT flexbox: flex-based centering (align-items/justify-content)
+        combined with a scrollable ancestor is a known cross-browser bug class that
+        either clips the top of tall content or collapses a flex-grow child's height
+        to near-zero. inline-block + vertical-align:middle has none of those failure
+        modes and has been the standard robust pattern for scrollable modal dialogs
+        for years (this is what Tailwind UI itself used pre-Headless UI).
+      */}
+      <div className="min-h-screen px-4 py-8 sm:px-6 text-center">
+        <span className="inline-block h-screen align-middle" aria-hidden="true">
+          &#8203;
+        </span>
 
-        <div className="p-6 overflow-y-auto flex-1">{children}</div>
+        {/* Modal Dialog Box */}
+        <div
+          className={`relative inline-block w-full ${maxWidthClass} text-left align-middle max-h-[calc(100vh-4rem)] flex flex-col bg-surface border border-border rounded-xl shadow-2xl z-10 animate-in zoom-in-95 duration-150`}
+          role="dialog"
+          aria-modal="true"
+        >
+          {(title || description) && (
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0 bg-surface rounded-t-xl">
+              <div>
+                {title && <h3 className="text-base font-semibold text-text-primary font-display">{title}</h3>}
+                {description && <p className="text-xs text-text-tertiary mt-0.5">{description}</p>}
+              </div>
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-surface-2 transition-colors ml-4 flex-shrink-0"
+                aria-label="Close modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          )}
+
+          <div className="p-6 overflow-y-auto flex-1 text-left">{children}</div>
+        </div>
       </div>
     </div>
   );
