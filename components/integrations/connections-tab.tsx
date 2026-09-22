@@ -194,7 +194,7 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
 
       // Execute mock/real callback exchange to fetch selectable accounts
       const cbRes = await fetch(
-        `/api/websites/${websiteId}/integrations/${provider}/callback?code=mock_code_${Date.now()}&state=${urlData.state}`
+        `/api/integrations/${provider}/callback?code=mock_code_${Date.now()}&state=${urlData.state}`
       );
       const cbResJson = await cbRes.json();
       const cbData = cbResJson.data || cbResJson;

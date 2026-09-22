@@ -24,7 +24,7 @@ export const GET = withHandler<{ id: string; provider: string }>(
 
     const adapter = getIntegrationAdapter(upperProvider);
     const state = generateOAuthState(context.params.id, upperProvider, ctx.userId);
-    const redirectUri = `${env.APP_ORIGIN}/api/websites/${context.params.id}/integrations/${upperProvider}/callback`;
+    const redirectUri = `${env.APP_ORIGIN}/api/integrations/${upperProvider}/callback`;
 
     const authUrl = await adapter.getAuthUrl(website, redirectUri, state);
     if (!authUrl) {

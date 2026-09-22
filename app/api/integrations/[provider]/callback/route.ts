@@ -5,13 +5,16 @@ import { env } from '@/lib/env';
 import { getIntegrationAdapter, isIntegrationProvider } from '@/lib/integrations/registry';
 import { verifyOAuthState } from '@/lib/integrations/state';
 
-export const GET = withHandler<{ id: string; provider: string }>(
-  async (
-    req: Request,
-    context: { params: { id: string; provider: string } }
-  ) => {
+// Static, provider-only callback path. Google/Meta require an exact-match
+// "Authorized redirect URI" registered ahead of time in their developer
+// consoles — a per-website path (the old /api/websites/[id]/integrations/...
+// route) can't work here because there's no way to pre-register one URI
+// per website. The website this callback is for travels safely inside the
+// signed, single-use `state` parameter instead (see lib/integrations/state.ts),
+// never in the URL path.
+export const GET = withHandler<{ provider: string }>(
+  async (req: Request, context: { params: { provider: string } }) => {
     const ctx = await requireOrgContext(req);
-    const website = await requireWebsiteAccess(ctx, context.params.id);
 
     const upperProvider = context.params.provider.toUpperCase();
     if (!isIntegrationProvider(upperProvider)) {
@@ -32,16 +35,17 @@ export const GET = withHandler<{ id: string; provider: string }>(
     }
 
     const verifiedState = verifyOAuthState(state);
-    if (
-      !verifiedState ||
-      verifiedState.websiteId !== context.params.id ||
-      verifiedState.provider !== upperProvider
-    ) {
+    if (!verifiedState || verifiedState.provider !== upperProvider) {
       return fail(400, 'INVALID_STATE', 'Invalid or expired OAuth state parameter. Please try connecting again.');
     }
 
+    // Re-derive website access server-side from the verified state's websiteId
+    // (never from a client-supplied URL segment) — same tenant-isolation rule
+    // as every other route.
+    const website = await requireWebsiteAccess(ctx, verifiedState.websiteId);
+
     const adapter = getIntegrationAdapter(upperProvider);
-    const redirectUri = `${env.APP_ORIGIN}/api/websites/${context.params.id}/integrations/${upperProvider}/callback`;
+    const redirectUri = `${env.APP_ORIGIN}/api/integrations/${upperProvider}/callback`;
 
     try {
       const result = await adapter.handleOAuthCallback(website, code, redirectUri);
@@ -49,6 +53,7 @@ export const GET = withHandler<{ id: string; provider: string }>(
         accounts: result.accounts,
         tokens: result.tokens,
         provider: upperProvider,
+        websiteId: verifiedState.websiteId,
       });
     } catch (err: any) {
       return fail(500, 'EXCHANGE_FAILED', err.message || 'Failed to exchange OAuth authorization code');
