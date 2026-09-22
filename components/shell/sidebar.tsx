@@ -23,6 +23,7 @@ import {
   Building2,
 } from 'lucide-react';
 import { useShell } from './context';
+import { TythasLogo } from '@/components/ui/tythas-logo';
 
 interface NavItemProps {
   label: string;
@@ -100,9 +101,12 @@ export const Sidebar: React.FC<{ isMobile?: boolean; onCloseMobile?: () => void 
       `}
     >
       {/* Brand Header */}
-      <div className="h-14 px-4 flex items-center gap-2.5 border-b border-sidebar-border">
-        <div className="w-7 h-7 rounded-md bg-accent flex items-center justify-center text-white font-display font-bold text-sm shadow-md">
-          T
+      <Link
+        href="/dashboard"
+        className="h-14 px-4 flex items-center gap-3 border-b border-sidebar-border hover:bg-white/[0.02] transition-colors"
+      >
+        <div className="w-8 h-8 rounded-lg bg-white/[0.06] border border-white/10 flex items-center justify-center p-1.5 shadow-sm">
+          <TythasLogo variant="icon" themeMode="light" size="sm" width={22} height={22} priority />
         </div>
         <div className="flex flex-col">
           <span className="font-display font-bold text-sm text-white tracking-tight">
@@ -112,7 +116,7 @@ export const Sidebar: React.FC<{ isMobile?: boolean; onCloseMobile?: () => void 
             Control Center
           </span>
         </div>
-      </div>
+      </Link>
 
       {/* Nav List */}
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">

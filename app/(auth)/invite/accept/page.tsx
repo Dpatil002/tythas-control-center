@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ShieldAlert, CheckCircle, Copy, Check, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { TythasLogo } from '@/components/ui/tythas-logo';
 
 interface MfaData {
   secret: string;
@@ -164,8 +165,8 @@ function AcceptInviteContent() {
   return (
     <div className="min-h-screen bg-bg flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-accent text-white font-display font-bold text-xl shadow-lg mb-4">
-          T
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-surface-2/80 border border-border shadow-md mb-4 p-2.5">
+          <TythasLogo variant="icon" size="md" width={38} height={38} priority />
         </div>
         <h2 className="text-2xl font-bold font-display text-text-primary tracking-tight">
           Join {invitationData?.organizationName}
