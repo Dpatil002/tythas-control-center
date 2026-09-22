@@ -420,8 +420,8 @@ export default function RedirectsPage() {
 
       {/* Add / Edit Redirect Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-surface border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-md my-auto max-h-[calc(100vh-2rem)] flex flex-col bg-surface border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-4 border-b border-border flex items-center justify-between bg-surface-hover/30">
               <h3 className="font-display font-bold text-sm text-text-primary">
                 {editingRedirect ? 'Edit Redirect' : 'Add New Redirect'}
@@ -519,8 +519,8 @@ export default function RedirectsPage() {
 
       {/* Review Chains & Loops Inspection Modal */}
       {showIssuesModal && chainLoopData && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl bg-surface border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-2xl my-auto max-h-[calc(100vh-2rem)] flex flex-col bg-surface border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-4 border-b border-border bg-surface-hover/30 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-400" />
@@ -533,7 +533,7 @@ export default function RedirectsPage() {
               </button>
             </div>
 
-            <div className="p-6 space-y-6 text-xs max-h-[70vh] overflow-y-auto">
+            <div className="p-6 space-y-6 text-xs max-h-[70vh] overflow-y-auto flex-1">
               {/* Loops */}
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-red-400 font-semibold font-mono text-[11px] uppercase">
@@ -591,8 +591,8 @@ export default function RedirectsPage() {
 
       {/* CSV Bulk Import Modal */}
       {showImportModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-surface border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-lg my-auto max-h-[calc(100vh-2rem)] flex flex-col bg-surface border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-4 border-b border-border flex items-center justify-between bg-surface-hover/30">
               <h3 className="font-display font-bold text-sm text-text-primary">Bulk CSV Import</h3>
               <button onClick={() => setShowImportModal(false)} className="text-text-muted hover:text-text-primary">

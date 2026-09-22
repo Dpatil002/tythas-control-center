@@ -879,8 +879,8 @@ ${form.fields
 
       {/* MODAL 1: Create Form */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-surface border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-md my-auto max-h-[calc(100vh-2rem)] flex flex-col bg-surface border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-4 border-b border-border flex items-center justify-between bg-surface-hover/30">
               <h3 className="font-display font-bold text-sm text-text-primary">Create New Form</h3>
               <button onClick={() => setShowCreateModal(false)} className="text-text-muted hover:text-text-primary">
@@ -920,8 +920,8 @@ ${form.fields
 
       {/* MODAL 2: Add Field */}
       {showAddFieldModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-surface border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-lg my-auto max-h-[calc(100vh-2rem)] flex flex-col bg-surface border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-4 border-b border-border flex items-center justify-between bg-surface-hover/30">
               <h3 className="font-display font-bold text-sm text-text-primary">Add Form Field</h3>
               <button onClick={() => setShowAddFieldModal(false)} className="text-text-muted hover:text-text-primary">
@@ -1022,8 +1022,8 @@ ${form.fields
 
       {/* MODAL 3: Disable Lead Warning Modal */}
       {showDisableLeadModal && pendingActionToggle && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-surface border border-red-500/30 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-md my-auto max-h-[calc(100vh-2rem)] flex flex-col bg-surface border border-red-500/30 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-4 border-b border-border flex items-center gap-2 bg-red-500/10 text-red-400">
               <AlertTriangle className="w-5 h-5 flex-shrink-0" />
               <h3 className="font-display font-bold text-sm">Disable Lead Pipeline?</h3>
@@ -1069,8 +1069,8 @@ ${form.fields
 
       {/* MODAL 4: Deploy / Embed Dialog */}
       {showDeployModal && deployingForm && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl bg-surface border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-2xl my-auto max-h-[calc(100vh-2rem)] flex flex-col bg-surface border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-4 border-b border-border flex items-center justify-between bg-surface-hover/30">
               <div className="flex items-center gap-2">
                 <Code className="w-4 h-4 text-accent" />

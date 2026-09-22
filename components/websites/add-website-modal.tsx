@@ -295,6 +295,7 @@ export const AddWebsiteModal: React.FC = () => {
     <Modal
       isOpen={isAddWebsiteOpen}
       onClose={() => setAddWebsiteOpen(false)}
+      maxWidth="lg"
       title={
         step === 1
           ? 'Add Website — Step 1: Enter URL'

@@ -544,8 +544,8 @@ export default function TechnicalSeoPage() {
 
           {/* Diff Confirmation Modal */}
           {showDiffModal && (
-            <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-              <div className="w-full max-w-2xl bg-surface border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+              <div className="w-full max-w-2xl my-auto max-h-[calc(100vh-2rem)] flex flex-col bg-surface border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                 <div className="p-4 border-b border-border bg-amber-500/10 flex items-center justify-between">
                   <div className="flex items-center gap-2 text-amber-400 font-semibold text-sm">
                     <AlertTriangle className="w-4 h-4" />

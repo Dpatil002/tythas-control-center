@@ -740,8 +740,8 @@ export default function LeadsPage() {
 
       {/* MODAL: Manual Add Lead */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-surface border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-md my-auto max-h-[calc(100vh-2rem)] flex flex-col bg-surface border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-4 border-b border-border flex items-center justify-between bg-surface-hover/30">
               <h3 className="font-display font-bold text-sm text-text-primary">Add Lead Manually</h3>
               <button onClick={() => setShowAddModal(false)} className="text-text-muted hover:text-text-primary">
