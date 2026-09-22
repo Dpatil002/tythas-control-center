@@ -39,10 +39,18 @@ export function withHandler<T = any>(handler: RouteHandler<T>): any {
       }
 
       console.error('Unhandled API Error:', error);
+      
+      const message =
+        error instanceof Error && error.message
+          ? error.message.includes('Can\'t reach database server') || error.message.includes('PrismaClient') || error.message.includes('database')
+            ? 'Database connection error. Please verify DATABASE_URL is set in environment settings.'
+            : error.message
+          : 'Something went wrong on our end. Please try again in a few moments.';
+
       return fail(
         500,
         'INTERNAL_SERVER_ERROR',
-        'Something went wrong on our end. Please try again in a few moments.'
+        message
       );
     }
   };
