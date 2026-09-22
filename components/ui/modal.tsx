@@ -55,7 +55,7 @@ export const Modal: React.FC<ModalProps> = ({
   }[maxWidth] || 'max-w-md';
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden p-4 sm:p-6 flex min-h-full items-center justify-center bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden p-4 sm:p-6 flex min-h-full items-start justify-center bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
       {/* Clickable backdrop overlay */}
       <div
         className="fixed inset-0 -z-10"
