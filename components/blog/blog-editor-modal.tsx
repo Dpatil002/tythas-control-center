@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal } from '@/components/ui/modal';
+import { SimpleRichTextEditor } from './simple-rich-text-editor';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -18,10 +19,6 @@ import {
   Globe,
   HelpCircle,
   FileText,
-  Heading2,
-  Heading3,
-  Quote,
-  Code,
   Info,
   User,
   Clock,
@@ -43,6 +40,37 @@ interface DocNode {
   attrs?: Record<string, any>;
   content?: any;
   text?: string;
+}
+
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Converts one node from the old multi-block editor (paragraph / heading / blockquote /
+// codeBlock) into an HTML fragment, so existing article text survives the move to the new
+// single-box editor.
+function legacyNodeToHtml(node: DocNode): string {
+  const text = Array.isArray(node.content)
+    ? node.content.map((c: any) => c.text || '').join('')
+    : (node as any).text || '';
+  const safe = escapeHtml(text);
+  if (node.type === 'heading') {
+    const level = node.attrs?.level === 3 ? 3 : 2;
+    return `<h${level}>${safe}</h${level}>`;
+  }
+  if (node.type === 'blockquote') return `<blockquote>${safe}</blockquote>`;
+  if (node.type === 'codeBlock') return `<pre>${safe}</pre>`;
+  if (!safe) return '';
+  return `<p>${safe}</p>`;
+}
+
+// Builds the Tiptap-shaped doc we persist: a single richText node carrying the article body
+// HTML, followed by any optional FAQ / Callout blocks the user added.
+function buildDocJson(specialNodes: DocNode[], html: string) {
+  return {
+    type: 'doc',
+    content: [{ type: 'richText', attrs: { html } }, ...specialNodes],
+  };
 }
 
 export function BlogEditorModal({
@@ -67,7 +95,9 @@ export function BlogEditorModal({
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
   const [authorId, setAuthorId] = useState<string>('');
-  const [nodes, setNodes] = useState<DocNode[]>([]);
+  const [nodes, setNodes] = useState<DocNode[]>([]); // holds only optional FAQ / Callout blocks now
+  const [bodyHtml, setBodyHtml] = useState('');
+  const [bodyVersion, setBodyVersion] = useState(0);
   const [seoTitle, setSeoTitle] = useState('');
   const [seoDescription, setSeoDescription] = useState('');
   const [focusKeyword, setFocusKeyword] = useState('');
@@ -103,17 +133,32 @@ export function BlogEditorModal({
         setFocusKeyword(p.focusKeyword || '');
         setVersions(p.versions || []);
 
-        // Parse content nodes
+        // Parse content nodes, splitting the flowing article body (paragraph / heading /
+        // blockquote / codeBlock / richText) from the optional FAQ & Callout blocks. Any
+        // legacy flow nodes (from the old multi-block editor) are converted into HTML so
+        // previously written article text still shows up in the new single-box editor.
         const rawContent = p.content;
-        if (rawContent && rawContent.type === 'doc' && Array.isArray(rawContent.content)) {
-          setNodes(rawContent.content);
-        } else if (Array.isArray(rawContent)) {
-          setNodes(rawContent);
-        } else {
-          setNodes([
-            { type: 'paragraph', content: [{ type: 'text', text: 'Start drafting article...' }] },
-          ]);
-        }
+        const allNodes: DocNode[] = rawContent && rawContent.type === 'doc' && Array.isArray(rawContent.content)
+          ? rawContent.content
+          : Array.isArray(rawContent)
+          ? rawContent
+          : [];
+
+        const specialNodes = allNodes.filter((n) => n.type === 'faqBlock' || n.type === 'callout');
+        const richTextNode = allNodes.find((n) => n.type === 'richText');
+        const legacyFlowNodes = allNodes.filter(
+          (n) => n.type !== 'faqBlock' && n.type !== 'callout' && n.type !== 'richText'
+        );
+
+        setNodes(specialNodes);
+        setBodyHtml(
+          richTextNode
+            ? (richTextNode as any).attrs?.html || ''
+            : legacyFlowNodes.length > 0
+            ? legacyFlowNodes.map(legacyNodeToHtml).join('')
+            : ''
+        );
+        setBodyVersion((v) => v + 1);
       }
 
       if (authorsRes.ok) {
@@ -136,17 +181,19 @@ export function BlogEditorModal({
   }, [isOpen, postId, websiteId]);
 
   // Debounced Autosave to database
-  const triggerAutosave = (updatedNodes: DocNode[], updatedTitle?: string, updatedAuthorId?: string) => {
+  const triggerAutosave = (
+    updatedNodes: DocNode[],
+    updatedBodyHtml: string,
+    updatedTitle?: string,
+    updatedAuthorId?: string
+  ) => {
     setAutosaveState('unsaved');
     if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
 
     autosaveTimeoutRef.current = setTimeout(async () => {
       setAutosaveState('saving');
       try {
-        const docJson = {
-          type: 'doc',
-          content: updatedNodes,
-        };
+        const docJson = buildDocJson(updatedNodes, updatedBodyHtml);
         await fetch(`/api/websites/${websiteId}/posts/${postId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -164,56 +211,32 @@ export function BlogEditorModal({
     }, 1500);
   };
 
-  // Node manipulation helpers
-  const handleAddNode = (type: string) => {
-    let newNode: DocNode;
-    switch (type) {
-      case 'heading2':
-        newNode = { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Section Heading' }] };
-        break;
-      case 'heading3':
-        newNode = { type: 'heading', attrs: { level: 3 }, content: [{ type: 'text', text: 'Subsection Heading' }] };
-        break;
-      case 'faqBlock':
-        newNode = {
-          type: 'faqBlock',
-          attrs: {
-            question: 'What are the primary benefits?',
-            answer: 'Detailed explanation of key benefits and advantages...',
-          },
-        };
-        break;
-      case 'callout':
-        newNode = {
-          type: 'callout',
-          attrs: { tone: 'info' },
-          content: [{ type: 'text', text: 'Important takeaway note for readers.' }],
-        };
-        break;
-      case 'quote':
-        newNode = {
-          type: 'blockquote',
-          content: [{ type: 'text', text: 'Notable quote or highlight snippet.' }],
-        };
-        break;
-      case 'code':
-        newNode = {
-          type: 'codeBlock',
-          content: [{ type: 'text', text: '// Enter snippet or example code here' }],
-        };
-        break;
-      case 'paragraph':
-      default:
-        newNode = {
-          type: 'paragraph',
-          content: [{ type: 'text', text: '' }],
-        };
-        break;
-    }
+  // Optional-section manipulation helpers (FAQ / Callout blocks only -- the flowing article
+  // body is handled by the single rich-text editor below via handleBodyChange).
+  const handleAddNode = (type: 'faqBlock' | 'callout') => {
+    const newNode: DocNode =
+      type === 'faqBlock'
+        ? {
+            type: 'faqBlock',
+            attrs: {
+              question: 'What are the primary benefits?',
+              answer: 'Detailed explanation of key benefits and advantages...',
+            },
+          }
+        : {
+            type: 'callout',
+            attrs: { tone: 'info' },
+            content: [{ type: 'text', text: 'Important takeaway note for readers.' }],
+          };
 
     const updated = [...nodes, newNode];
     setNodes(updated);
-    triggerAutosave(updated);
+    triggerAutosave(updated, bodyHtml);
+  };
+
+  const handleBodyChange = (html: string) => {
+    setBodyHtml(html);
+    triggerAutosave(nodes, html);
   };
 
   const handleUpdateNodeText = (index: number, text: string) => {
@@ -223,7 +246,7 @@ export function BlogEditorModal({
       content: [{ type: 'text', text }],
     };
     setNodes(updated);
-    triggerAutosave(updated);
+    triggerAutosave(updated, bodyHtml);
   };
 
   const handleUpdateFaq = (index: number, field: 'question' | 'answer', value: string) => {
@@ -235,23 +258,20 @@ export function BlogEditorModal({
     };
     updated[index] = node;
     setNodes(updated);
-    triggerAutosave(updated);
+    triggerAutosave(updated, bodyHtml);
   };
 
   const handleDeleteNode = (index: number) => {
     const updated = nodes.filter((_, i) => i !== index);
     setNodes(updated);
-    triggerAutosave(updated);
+    triggerAutosave(updated, bodyHtml);
   };
 
   const handleExplicitSave = async () => {
     setSaving(true);
     setStatusMessage(null);
     try {
-      const docJson = {
-        type: 'doc',
-        content: nodes,
-      };
+      const docJson = buildDocJson(nodes, bodyHtml);
       const res = await fetch(`/api/websites/${websiteId}/posts/${postId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -285,7 +305,7 @@ export function BlogEditorModal({
     setStatusMessage(null);
     try {
       // First save
-      const docJson = { type: 'doc', content: nodes };
+      const docJson = buildDocJson(nodes, bodyHtml);
       await fetch(`/api/websites/${websiteId}/posts/${postId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -505,7 +525,7 @@ export function BlogEditorModal({
                     value={title}
                     onChange={(e) => {
                       setTitle(e.target.value);
-                      triggerAutosave(nodes, e.target.value);
+                      triggerAutosave(nodes, bodyHtml, e.target.value);
                     }}
                     placeholder="Article Headline..."
                     className="w-full px-3 py-1.5 text-sm bg-surface border border-border rounded-lg text-text-primary focus:outline-none focus:border-brand font-semibold"
@@ -518,7 +538,7 @@ export function BlogEditorModal({
                     value={authorId}
                     onChange={(e) => {
                       setAuthorId(e.target.value);
-                      triggerAutosave(nodes, title, e.target.value);
+                      triggerAutosave(nodes, bodyHtml, title, e.target.value);
                     }}
                     className="w-full px-3 py-2 text-xs bg-surface border border-border rounded-lg text-text-primary focus:outline-none focus:border-brand"
                   >
@@ -532,54 +552,16 @@ export function BlogEditorModal({
                 </div>
               </div>
 
-              {/* Toolbar Palette for Tiptap Nodes */}
-              <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-xl border border-border bg-surface sticky top-0 z-10 shadow-sm">
-                <span className="text-[10px] font-bold text-text-tertiary uppercase px-2">Insert Block:</span>
-                <button
-                  onClick={() => handleAddNode('paragraph')}
-                  className="px-2.5 py-1 text-xs rounded hover:bg-surface-2 text-text-secondary hover:text-text-primary flex items-center gap-1"
-                >
-                  <FileText className="w-3.5 h-3.5" /> Paragraph
-                </button>
-                <button
-                  onClick={() => handleAddNode('heading2')}
-                  className="px-2.5 py-1 text-xs rounded hover:bg-surface-2 text-text-secondary hover:text-text-primary flex items-center gap-1"
-                >
-                  <Heading2 className="w-3.5 h-3.5" /> Heading 2
-                </button>
-                <button
-                  onClick={() => handleAddNode('heading3')}
-                  className="px-2.5 py-1 text-xs rounded hover:bg-surface-2 text-text-secondary hover:text-text-primary flex items-center gap-1"
-                >
-                  <Heading3 className="w-3.5 h-3.5" /> Heading 3
-                </button>
-                <button
-                  onClick={() => handleAddNode('faqBlock')}
-                  className="px-2.5 py-1 text-xs rounded bg-brand/10 text-brand hover:bg-brand/20 font-medium flex items-center gap-1"
-                >
-                  <HelpCircle className="w-3.5 h-3.5" /> FAQ Block
-                </button>
-                <button
-                  onClick={() => handleAddNode('callout')}
-                  className="px-2.5 py-1 text-xs rounded hover:bg-surface-2 text-text-secondary hover:text-text-primary flex items-center gap-1"
-                >
-                  <Info className="w-3.5 h-3.5" /> Callout Box
-                </button>
-                <button
-                  onClick={() => handleAddNode('quote')}
-                  className="px-2.5 py-1 text-xs rounded hover:bg-surface-2 text-text-secondary hover:text-text-primary flex items-center gap-1"
-                >
-                  <Quote className="w-3.5 h-3.5" /> Quote
-                </button>
-                <button
-                  onClick={() => handleAddNode('code')}
-                  className="px-2.5 py-1 text-xs rounded hover:bg-surface-2 text-text-secondary hover:text-text-primary flex items-center gap-1"
-                >
-                  <Code className="w-3.5 h-3.5" /> Code Block
-                </button>
-              </div>
+              {/* Article body: one continuous writing box, WordPress-classic style */}
+              <SimpleRichTextEditor
+                value={bodyHtml}
+                onChange={handleBodyChange}
+                resetKey={`${postId}-${bodyVersion}`}
+                placeholder="Start writing your article..."
+              />
 
-              {/* Node stream */}
+              {/* Optional sections: FAQ / Callout, kept separate from the main body so the
+                  writing box itself stays a single simple area. */}
               <div className="space-y-3">
                 {nodes.map((node, idx) => {
                   const nodeText = Array.isArray(node.content)
@@ -644,88 +626,23 @@ export function BlogEditorModal({
                     );
                   }
 
-                  if (node.type === 'heading') {
-                    const isH2 = node.attrs?.level === 2;
-                    return (
-                      <div key={idx} className="flex items-center gap-2 group">
-                        <input
-                          type="text"
-                          value={nodeText}
-                          onChange={(e) => handleUpdateNodeText(idx, e.target.value)}
-                          placeholder={isH2 ? 'Heading 2' : 'Heading 3'}
-                          className={`w-full px-3 py-1.5 bg-surface border border-border rounded-lg text-text-primary font-display font-bold ${
-                            isH2 ? 'text-lg' : 'text-base'
-                          }`}
-                        />
-                        <button
-                          onClick={() => handleDeleteNode(idx)}
-                          className="p-1.5 rounded text-text-tertiary hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    );
-                  }
-
-                  if (node.type === 'blockquote') {
-                    return (
-                      <div key={idx} className="flex items-center gap-2 group">
-                        <textarea
-                          value={nodeText}
-                          onChange={(e) => handleUpdateNodeText(idx, e.target.value)}
-                          placeholder="Quote citation..."
-                          rows={2}
-                          className="w-full px-3 py-1.5 text-xs italic bg-surface border-l-4 border-brand rounded-r-lg text-text-primary"
-                        />
-                        <button
-                          onClick={() => handleDeleteNode(idx)}
-                          className="p-1.5 rounded text-text-tertiary hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    );
-                  }
-
-                  if (node.type === 'codeBlock') {
-                    return (
-                      <div key={idx} className="flex items-center gap-2 group">
-                        <textarea
-                          value={nodeText}
-                          onChange={(e) => handleUpdateNodeText(idx, e.target.value)}
-                          placeholder="// code snippet..."
-                          rows={3}
-                          className="w-full px-3 py-1.5 text-xs font-mono bg-zinc-900 text-zinc-100 border border-border rounded-lg"
-                        />
-                        <button
-                          onClick={() => handleDeleteNode(idx)}
-                          className="p-1.5 rounded text-text-tertiary hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    );
-                  }
-
-                  // Default paragraph
-                  return (
-                    <div key={idx} className="flex items-start gap-2 group">
-                      <textarea
-                        value={nodeText}
-                        onChange={(e) => handleUpdateNodeText(idx, e.target.value)}
-                        placeholder="Write paragraph copy..."
-                        rows={3}
-                        className="w-full px-3 py-2 text-xs bg-surface border border-border rounded-lg text-text-primary leading-relaxed focus:outline-none focus:border-brand"
-                      />
-                      <button
-                        onClick={() => handleDeleteNode(idx)}
-                        className="p-1.5 rounded text-text-tertiary hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity mt-1"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  );
+                  return null;
                 })}
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleAddNode('faqBlock')}
+                    className="px-2.5 py-1.5 text-xs rounded-lg border border-dashed border-border hover:border-brand/50 hover:bg-brand/5 text-text-secondary hover:text-brand flex items-center gap-1.5"
+                  >
+                    <HelpCircle className="w-3.5 h-3.5" /> Add FAQ Section
+                  </button>
+                  <button
+                    onClick={() => handleAddNode('callout')}
+                    className="px-2.5 py-1.5 text-xs rounded-lg border border-dashed border-border hover:border-brand/50 hover:bg-brand/5 text-text-secondary hover:text-brand flex items-center gap-1.5"
+                  >
+                    <Info className="w-3.5 h-3.5" /> Add Callout Box
+                  </button>
+                </div>
               </div>
             </div>
           ) : activeTab === 'seo' ? (
