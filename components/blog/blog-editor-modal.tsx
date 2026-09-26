@@ -11,6 +11,7 @@ import {
   Save,
   Send,
   History,
+  Eye,
   RotateCcw,
   Plus,
   Trash2,
@@ -82,7 +83,7 @@ export function BlogEditorModal({
   canWrite,
   onSaved,
 }: BlogEditorModalProps) {
-  const [activeTab, setActiveTab] = useState<'editor' | 'seo' | 'versions'>('editor');
+  const [activeTab, setActiveTab] = useState<'editor' | 'seo' | 'preview' | 'versions'>('editor');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -478,6 +479,17 @@ export function BlogEditorModal({
             SEO & Metadata
           </button>
           <button
+            onClick={() => setActiveTab('preview')}
+            className={`px-3 py-2.5 font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+              activeTab === 'preview'
+                ? 'border-brand text-brand font-semibold'
+                : 'border-transparent text-text-secondary hover:text-text-primary'
+            }`}
+          >
+            <Eye className="w-4 h-4" />
+            Preview
+          </button>
+          <button
             onClick={() => setActiveTab('versions')}
             className={`px-3 py-2.5 font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
               activeTab === 'versions'
@@ -680,6 +692,67 @@ export function BlogEditorModal({
                     placeholder="Target search keyword"
                     className="w-full px-3 py-2 text-xs bg-surface border border-border rounded-lg text-text-primary focus:outline-none focus:border-brand"
                   />
+                </div>
+              </div>
+            </div>
+          ) : activeTab === 'preview' ? (
+            <div className="flex justify-center">
+              <div className="w-full max-w-3xl border border-border rounded-xl bg-surface shadow-lg overflow-hidden">
+                {/* Simulated browser bar, matching the Page editor's Live Preview */}
+                <div className="flex items-center gap-2 px-4 py-2.5 bg-surface-2 border-b border-border text-xs text-text-tertiary">
+                  <div className="flex gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-rose-500/80" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
+                  </div>
+                  <div className="flex-1 text-center bg-surface px-3 py-0.5 rounded text-[11px] text-text-secondary truncate border border-border">
+                    https://{websiteDomain}{slug}
+                  </div>
+                </div>
+                <div className="p-8">
+                  <h1 className="text-2xl font-extrabold text-text-primary font-display mb-2">
+                    {title || 'Untitled Post'}
+                  </h1>
+                  {(() => {
+                    const previewAuthor = authors.find((a) => a.id === authorId);
+                    return previewAuthor ? (
+                      <p className="text-xs text-text-tertiary mb-6 flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5" /> By {previewAuthor.name}
+                      </p>
+                    ) : (
+                      <div className="mb-6" />
+                    );
+                  })()}
+                  <div
+                    className="prose-editor text-sm text-text-primary leading-relaxed [&_h2]:text-lg [&_h2]:font-bold [&_h2]:font-display [&_h2]:mt-4 [&_h2]:mb-2 [&_h3]:text-base [&_h3]:font-bold [&_h3]:font-display [&_h3]:mt-3 [&_h3]:mb-1.5 [&_p]:mb-3 [&_blockquote]:border-l-4 [&_blockquote]:border-brand [&_blockquote]:pl-3 [&_blockquote]:italic [&_blockquote]:text-text-secondary [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:text-brand [&_a]:underline"
+                    dangerouslySetInnerHTML={{ __html: bodyHtml || '<p class="text-text-tertiary">Nothing written yet.</p>' }}
+                  />
+                  {nodes.length > 0 && (
+                    <div className="mt-8 space-y-4 border-t border-border pt-6">
+                      {nodes.map((node, idx) => {
+                        if (node.type === 'faqBlock') {
+                          return (
+                            <div key={idx} className="p-4 rounded-lg bg-surface-2/40 border border-border">
+                              <p className="text-sm font-semibold text-text-primary mb-1">
+                                {node.attrs?.question || ''}
+                              </p>
+                              <p className="text-xs text-text-secondary leading-relaxed">
+                                {node.attrs?.answer || ''}
+                              </p>
+                            </div>
+                          );
+                        }
+                        const calloutText = Array.isArray(node.content)
+                          ? node.content.map((c: any) => c.text || '').join('')
+                          : node.text || '';
+                        return (
+                          <div key={idx} className="p-4 rounded-lg bg-brand/5 border border-brand/20 text-xs text-text-primary">
+                            {calloutText}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
