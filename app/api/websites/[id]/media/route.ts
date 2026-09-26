@@ -3,8 +3,7 @@ import { ok, fail } from '@/lib/http/respond';
 import { requireOrgContext, requireWebsiteAccess } from '@/lib/auth/context';
 import { prisma } from '@/lib/db/prisma';
 import { z } from 'zod';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
+import { put } from '@vercel/blob';
 
 const CreateMediaSchema = z.object({
   url: z.string().min(1, 'URL is required'),
@@ -105,14 +104,18 @@ export const POST = withHandler(async (req: Request, { params }: { params: { id:
     const ext = filename.split('.').pop()?.toLowerCase() || 'jpg';
     const sizeBytes = buffer.length;
 
-    // Save to public uploads dir
-    const uploadsDir = join(process.cwd(), 'public', 'uploads', params.id);
-    await mkdir(uploadsDir, { recursive: true });
+    // Upload to Vercel Blob storage. Vercel's serverless functions run on a
+    // read-only filesystem (writing to `public/` on disk, as this used to do,
+    // fails in production with ENOENT since there is no writable/servable
+    // local disk at runtime) -- object storage is required instead.
     const uniqueFilename = `${Date.now()}_${filename}`;
-    const filePath = join(uploadsDir, uniqueFilename);
-    await writeFile(filePath, buffer);
+    const blobPath = `uploads/${params.id}/${uniqueFilename}`;
+    const blob = await put(blobPath, buffer, {
+      access: 'public',
+      contentType: file.type || undefined,
+    });
 
-    const publicUrl = `/uploads/${params.id}/${uniqueFilename}`;
+    const publicUrl = blob.url;
 
     const media = await prisma.media.create({
       data: {
