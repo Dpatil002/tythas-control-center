@@ -131,6 +131,11 @@ const ACTION_TYPES = [
   },
 ];
 
+// Temporarily hidden per request: the "Create New Form" entry points are hidden from the UI
+// while keeping all the underlying code (modal, handler, API route) intact so this can be
+// switched back on later just by flipping this flag.
+const SHOW_CREATE_FORM_BUTTON = false;
+
 export default function FormsPage() {
   const { activeWebsite, setAddWebsiteOpen } = useShell();
 
@@ -453,16 +458,18 @@ ${form.fields
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            onClick={() => setShowCreateModal(true)}
-            className="text-xs bg-accent text-white hover:bg-accent-hover flex items-center gap-1.5 shadow-md"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>+ Create Form</span>
-          </Button>
-        </div>
+        {SHOW_CREATE_FORM_BUTTON && (
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => setShowCreateModal(true)}
+              className="text-xs bg-accent text-white hover:bg-accent-hover flex items-center gap-1.5 shadow-md"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ Create Form</span>
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Main Grid: Form List or Form Builder Drawer */}
@@ -512,9 +519,11 @@ ${form.fields
               <p className="text-xs max-w-sm mx-auto">
                 Create your first lead capture form or contact form to start collecting inquiries.
               </p>
-              <Button size="sm" onClick={() => setShowCreateModal(true)} className="text-xs mt-2">
-                + Create Form
-              </Button>
+              {SHOW_CREATE_FORM_BUTTON && (
+                <Button size="sm" onClick={() => setShowCreateModal(true)} className="text-xs mt-2">
+                  + Create Form
+                </Button>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
@@ -877,8 +886,8 @@ ${form.fields
         )}
       </div>
 
-      {/* MODAL 1: Create Form */}
-      {showCreateModal && (
+      {/* MODAL 1: Create Form (hidden -- see SHOW_CREATE_FORM_BUTTON above) */}
+      {SHOW_CREATE_FORM_BUTTON && showCreateModal && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="w-full max-w-md my-auto max-h-[calc(100vh-2rem)] flex flex-col bg-surface border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-4 border-b border-border flex items-center justify-between bg-surface-hover/30">
