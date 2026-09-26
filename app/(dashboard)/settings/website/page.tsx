@@ -34,6 +34,7 @@ export default function WebsiteSettingsPage() {
   const [wpAppPassword, setWpAppPassword] = useState('');
   const [customSecret, setCustomSecret] = useState('');
   const [customEndpoint, setCustomEndpoint] = useState('');
+  const [customTestMode, setCustomTestMode] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
@@ -77,6 +78,7 @@ export default function WebsiteSettingsPage() {
       } else {
         payload.sharedSecret = customSecret;
         payload.apiEndpoint = customEndpoint;
+        payload.testMode = customTestMode;
       }
 
       const res = await fetch(`/api/websites/${activeWebsite.id}/connector`, {
@@ -316,19 +318,42 @@ export default function WebsiteSettingsPage() {
                 </>
               ) : (
                 <>
-                  <Input
-                    label="Custom API Endpoint (Optional)"
-                    placeholder={`https://${activeWebsite.domain}`}
-                    value={customEndpoint}
-                    onChange={(e) => setCustomEndpoint(e.target.value)}
-                    hint="Leave blank to use the registered domain"
-                  />
+                  <label className="p-3 rounded-lg bg-surface-2/30 hover:bg-surface-2/60 border border-border flex items-start gap-3 cursor-pointer transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={customTestMode}
+                      onChange={(e) => setCustomTestMode(e.target.checked)}
+                      className="mt-0.5 rounded border-border text-accent focus:ring-accent"
+                    />
+                    <span className="space-y-0.5">
+                      <span className="block font-display font-semibold text-xs text-text-primary">
+                        Test / Demo Mode (no live backend)
+                      </span>
+                      <span className="block text-[11px] text-text-secondary">
+                        Unlocks the full editor and Publish workflow for internal testing, without
+                        contacting a real API endpoint. Nothing is actually pushed to a live site
+                        while this is on — use it to try out page editing before your real
+                        WordPress/Custom backend is ready.
+                      </span>
+                    </span>
+                  </label>
+
+                  {!customTestMode && (
+                    <Input
+                      label="Custom API Endpoint (Optional)"
+                      placeholder={`https://${activeWebsite.domain}`}
+                      value={customEndpoint}
+                      onChange={(e) => setCustomEndpoint(e.target.value)}
+                      hint="Leave blank to use the registered domain"
+                    />
+                  )}
                   <Input
                     label="Shared Connector Secret"
                     type="password"
-                    placeholder="Shared secret token"
+                    placeholder={customTestMode ? 'Any placeholder value' : 'Shared secret token'}
                     value={customSecret}
                     onChange={(e) => setCustomSecret(e.target.value)}
+                    hint={customTestMode ? 'Required by the form, but not verified against anything in test mode.' : undefined}
                     required
                   />
                 </>

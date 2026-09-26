@@ -82,7 +82,26 @@ export function PageEditorModal({
         setSeoDescription(p.seoDescription || '');
         setH1(p.h1 || '');
         setFocusKeyword(p.focusKeyword || '');
-        setSections(p.sections || []);
+        if (p.sections && p.sections.length > 0) {
+          setSections(p.sections);
+        } else {
+          // Brand-new page with no sections yet: seed one Rich Text section pre-filled with the
+          // page's own title, so the editor opens with something ready to edit instead of an
+          // empty "Add Section" picker. Users can still add more section types below.
+          const richTextDef = getSectionTypeDef('rich_text');
+          setSections([
+            {
+              id: `temp_${Date.now()}`,
+              type: 'rich_text',
+              order: 0,
+              content: {
+                ...JSON.parse(JSON.stringify(richTextDef.defaultContent)),
+                title: p.title || richTextDef.defaultContent.title,
+                content: '',
+              },
+            },
+          ]);
+        }
         setVersions(p.versions || []);
       }
     } catch (err) {

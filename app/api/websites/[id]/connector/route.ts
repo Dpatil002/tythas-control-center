@@ -28,24 +28,33 @@ export const POST = withHandler(async (req, { params }) => {
   }
 
   const body = await req.json();
-  const { connectorType, username, applicationPassword, sharedSecret, apiEndpoint } = body;
+  const { connectorType, username, applicationPassword, sharedSecret, apiEndpoint, testMode } = body;
 
   if (!['WORDPRESS', 'CUSTOM'].includes(connectorType)) {
     throw new ValidationError('connectorType must be WORDPRESS or CUSTOM.');
   }
+
+  // Test/Demo Mode: an explicit, user-opted-in shortcut (CUSTOM connector only) that unlocks the
+  // full editor and Publish workflow for internal testing without probing a real backend. We only
+  // take this branch when the user has ticked the "Test / Demo Mode" checkbox in Settings, so a
+  // blank "Custom API Endpoint" field still means "use the registered domain" as documented in the
+  // UI, exactly as before, for anyone who is NOT using test mode.
+  const isCustomTestMode = connectorType === 'CUSTOM' && testMode === true;
 
   const credentialPayload: DecryptedCredential = {
     type: connectorType,
     username: username?.trim(),
     applicationPassword: applicationPassword?.trim(),
     sharedSecret: sharedSecret?.trim(),
-    apiEndpoint: apiEndpoint?.trim() || `https://${website.domain}`,
+    apiEndpoint: isCustomTestMode ? '' : apiEndpoint?.trim() || `https://${website.domain}`,
   };
 
   // Encrypt credential blob at rest
   const encryptedBlob = encryptConnectorData(credentialPayload);
 
-  // Probe capabilities through the connector
+  // Probe capabilities through the connector. In Test/Demo Mode we skip the network probe
+  // entirely and go straight to the CUSTOM connector's built-in "no endpoint" shortcut, which
+  // returns the full write-capability set immediately (see lib/connectors/custom.ts).
   const connector = getConnector(connectorType);
   const capabilities = await connector.getCapabilities(credentialPayload);
 
@@ -87,7 +96,9 @@ export const POST = withHandler(async (req, { params }) => {
       connectionState: updatedWebsite.connectionState,
     },
     capabilities,
-    message: hasWriteCapability
+    message: isCustomTestMode
+      ? 'Test/Demo Mode enabled. Editing and Publish are unlocked for internal testing; nothing is sent to a live site.'
+      : hasWriteCapability
       ? 'Connector established successfully. Editing features will unlock in Phase 3.'
       : 'Connector configured in Audit Only mode (write capabilities not detected).',
   });
