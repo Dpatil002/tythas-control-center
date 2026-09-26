@@ -146,6 +146,22 @@ body {
   font-family: var(--font-karla), sans-serif;
 }
 
+/*
+  Native <select> dropdown popups are rendered by the OS/browser, not by our
+  CSS -- most browsers show that popup on a plain light background regardless
+  of the page's dark theme, but they DO still apply an inherited `color` to
+  the <option> text. Every <select> in this app inherits var(--color-text-primary),
+  which in dark mode is near-white (#EEF1FA) -- so option text ends up
+  near-white on the browser's native white dropdown background: invisible.
+  Setting explicit, theme-independent colors directly on <option> (rather than
+  relying on inheritance) is honored by all major browsers and fixes this
+  everywhere in the app in one place, instead of patching every <select> call site.
+*/
+select option {
+  color: #0E1220;
+  background-color: #FFFFFF;
+}
+
 h1, h2, h3, h4, h5, h6, button, label, nav {
   font-family: var(--font-outfit), sans-serif;
 }
