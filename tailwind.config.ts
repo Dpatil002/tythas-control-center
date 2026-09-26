@@ -13,6 +13,7 @@ const config: Config = {
         bg: 'var(--color-bg)',
         surface: 'var(--color-surface)',
         'surface-2': 'var(--color-surface-2)',
+        'surface-hover': 'var(--color-surface-hover)',
         border: 'var(--color-border)',
         'border-strong': 'var(--color-border-strong)',
         'text-primary': 'var(--color-text-primary)',
